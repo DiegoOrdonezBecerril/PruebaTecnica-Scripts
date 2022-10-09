@@ -1,0 +1,108 @@
+USE MASTER
+GO
+
+DROP DATABASE IF EXISTS PruebaTecnica
+GO
+
+CREATE DATABASE PruebaTecnica
+GO
+
+USE PruebaTecnica
+GO
+
+CREATE TABLE Users (
+	IdUser BIGINT NOT NULL PRIMARY KEY IDENTITY(1, 1), 
+	FirstName VARCHAR(50) NOT NULL, 
+	LastName VARCHAR(50) NOT NULL, 
+	BirthDate DATE NOT NULL, 
+	Email VARCHAR(50) NOT NULL, 
+	PhoneNumber VARCHAR(10) NOT NULL, 
+	Active BIT NOT NULL DEFAULT 1,
+	CreatedAt DATETIME DEFAULT GETDATE(),
+	UpdatedAt DATETIME
+)
+GO
+
+CREATE TRIGGER OnUserUpdate ON Users AFTER UPDATE
+AS BEGIN
+	UPDATE Users SET UpdatedAt = GETDATE() WHERE IdUser IN (SELECT IdUser FROM INSERTED);
+END
+GO
+
+CREATE OR ALTER PROCEDURE CreateUser 
+	@FirstName VARCHAR(50), 
+	@LastName VARCHAR(50), 
+	@BirthDate VARCHAR(10), 
+	@Email VARCHAR(50), 
+	@PhoneNumber VARCHAR(10)
+AS BEGIN
+	INSERT INTO Users(FirstName, LastName, BirthDate, Email, PhoneNumber) VALUES (@FirstName, @LastName, @BirthDate, @Email, @PhoneNumber)
+	SELECT TOP 1 * FROM Users ORDER BY IdUser DESC 
+END
+GO
+
+CREATE OR ALTER PROCEDURE UpdateUser  
+	@IdUser	BIGINT,
+	@FirstName VARCHAR(50), 
+	@LastName VARCHAR(50), 
+	@BirthDate VARCHAR(10), 
+	@Email VARCHAR(50), 
+	@PhoneNumber VARCHAR(10)
+AS BEGIN
+	IF (@FirstName IS NULL AND @LastName IS NULL AND @BirthDate IS NULL AND @Email IS NULL AND @PhoneNumber IS NULL)
+		SELECT TOP 1 * FROM Users WHERE 0 != 0
+	ELSE BEGIN 
+		UPDATE Users SET 
+			FirstName = COALESCE(@FirstName, FirstName), 
+			LastName = COALESCE(@LastName, LastName), 
+			BirthDate = COALESCE(@BirthDate, BirthDate), 
+			Email = COALESCE(@Email, Email), 
+			PhoneNumber = COALESCE(@PhoneNumber, PhoneNumber) 
+			WHERE IdUser = @IdUser;
+
+		SELECT TOP 1 * FROM Users WHERE IdUser = @IdUser
+	END
+END
+GO
+
+CREATE OR ALTER PROCEDURE DeleteUserById 
+	@IdUser	BIGINT
+AS BEGIN
+	DECLARE @Deletable INT = (SELECT COUNT(IdUser) FROM Users WHERE IdUser = @IdUser AND Active = 1);
+
+	IF (@Deletable > 0) BEGIN
+		UPDATE Users SET Active = 0  WHERE IdUser = @IdUser AND Active = 1;
+		SELECT TOP 1 * FROM Users WHERE IdUser = @IdUser;
+	END ELSE 
+		SELECT TOP 1 * FROM Users WHERE 0 != 0
+END
+GO
+
+CREATE PROCEDURE GetUsersByActive 
+	@Active BIT
+AS BEGIN
+	SELECT * FROM Users WHERE Active = @Active
+END
+GO
+
+CREATE PROCEDURE GetUserById  
+	@IdUser BIGINT
+AS BEGIN
+	SELECT TOP 1 * FROM Users WHERE IdUser = @IdUser
+END
+GO
+
+INSERT INTO Users(FirstName, LastName, BirthDate, Email, PhoneNumber) VALUES
+('JUAN', 'PEREZ', '1995-05-05', 'JUAN@GMAIL.COM', '5566778899'), 
+('JULIO', 'MARTINEZ', '1996-06-06', 'JULIO@GMAIL.COM', '5544332211'), 
+('PEDRO', 'HERNANDEZ', '1997-07-07', 'PEDRO@GMAIL.COM', '7788998877'), 
+('PABLO', 'GARCIA', '1998-08-08', 'PABLO@GMAIL.COM', '7766554433'), 
+('MARCO', 'LOPEZ', '1999-09-09', 'MARCO@GMAIL.COM', '4455667788'), 
+('ADRIAN', 'SANCHEZ', '2001-01-01', 'ADRIAN@GMAIL.COM', '4433221122'), 
+('JUAN', 'SANCHEZ', '1995-05-05', 'JUANS@GMAIL.COM', '5566008899'), 
+('JULIO', 'LOPEZ', '1996-06-06', 'JULIOL@GMAIL.COM', '5544002211'), 
+('PEDRO', 'GARCIA', '1997-07-07', 'PEDROG@GMAIL.COM', '7788008877'), 
+('PABLO', 'HERNANDEZ', '1998-08-08', 'PABLOH@GMAIL.COM', '7766004433'), 
+('MARCO', 'MARTINEZ', '1999-09-09', 'MARCOM@GMAIL.COM', '4455007788'), 
+('ADRIAN', 'PEREZ', '2001-01-01', 'ADRIANP@GMAIL.COM', '4433001122')
+GO
